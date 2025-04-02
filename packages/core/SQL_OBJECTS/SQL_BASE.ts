@@ -23,7 +23,9 @@ import {
   ColumnEntry
 } from "../../type_defs/SQL_TYPES";
 
+import QUERY_GENERATOR, {SQL_HELPERS} from "./QUERY_GENERATOR";
 
+// const Q_GEN = new QUERY_GENERATOR();
  
 import {
   getForeignKey,
@@ -98,6 +100,9 @@ export default class SQL_BASE {
     this.lastQuery = undefined
   }
 
+  Q_GEN = new QUERY_GENERATOR();
+  Helpers = new SQL_HELPERS();
+
   construct() {
     if (this.tableSchema.length > 0) {
       this.extrapolateData(this.tableSchema);
@@ -162,28 +167,9 @@ export default class SQL_BASE {
     }
   };
 
-  compareAllColumnInputs = (arr: ColumnInput[]) => {
-    let colNames = [];
-    let colVals = [];
-    for (let i = 0; i < arr.length; i++) {
-      const [key, value] = Object.entries(arr[i]);
-      colNames.push(key);
-      colVals.push(value);
-    }
-
-    let text = "";
-    for (let i = 0; i < colNames.length; i++) {
-      const col = colNames[i];
-      const value = colVals[i];
-      const addend = i === colNames.length - 1 ? "" : "AND";
-      text += `"${col}" = '${value}' ${addend} `;
-    }
-    return text;
-  };
-
   findRowByColumnsAndValues = async (arr: ColumnInput[], callAddress=this.callAddress, options: Options | undefined) => {
 
-    let query = this.compareAllColumnInputs(arr);
+    let query = this.Helpers.compareAllColumnInputs(arr);
     query = this.HANDLE_SUPPLEMENTARY(query, options)
     const response = await this.call(
       { query: query, type: "GET" },
@@ -239,25 +225,6 @@ export default class SQL_BASE {
     return res;
   };
 
-
-  IS_JSON = (potentialJsonString: string) => {
-    try {
-      return JSON.parse(potentialJsonString)
-      
-    } catch (err) {
-      return false
-    }
-  }
-
-  GET_UNIQUE_FROM_SCHEMA = (data: RowEntry) => {
-    for (const entry in Object.keys(data)){
-      if (unique in this.tableSchema[entry]){
-        return entry
-      }
-    }
-    return false
-  }
-
   getAtomicIdentifier(row: RowEntry): { column: string; value: any } {
     if (this.primaryKey && row[this.primaryKey] !== undefined) {
       return { column: this.primaryKey, value: row[this.primaryKey] };
@@ -272,42 +239,24 @@ export default class SQL_BASE {
     throw new Error("Row must contain a primary key or a unique column to perform an atomic delete.");
   }
 
-    
-  Where = (columnName: ColumnName, value: Value) => {
-    let val = value;
-    if (typeof val === "string" || typeof val === "number" || typeof val === "boolean") {
-      val = this.HANDLE_INSERT_NUMBER_OR_STRING(val, `'`)
-    } else if (Array.isArray(val)){
-      val = this.HANDLE_ARRAY_COLUMN_VALUES(val)
-    } 
-    return `"${columnName}" = ${val} `;
-  };
 
-  TableWhere = (columnName: ColumnName, tableName: string, value: Value) => {
-    let val = value;
-    if (typeof val == "string") {
-      val = `'${value}'`;
+
+  GET_UNIQUE_FROM_SCHEMA = (data: RowEntry) => {
+    for (const entry in Object.keys(data)){
+      if (unique in this.tableSchema[entry]){
+        return entry
+      }
     }
-    return `"${columnName}" = '${tableName}'.${val}`;
-  };
-
-  Wheres = (args: ColumnInput) => {
-    let query = "WHERE ";
-    const entries = Object.entries(args);
-    entries.forEach((entry, index) => {
-      const addend = index === entries.length - 1 ? "" : "AND ";
-      query += this.Where(entry[0], entry[1]) + addend;
-    });
-    return query;
-  };
+    return false
+  }
 
   SET = (columnName: ColumnName, value: any, isJsonB: boolean) => {
     if (isJsonB){
-      return `${columnName} = ${this.HANDLE_INSERT_JSON_B(value)}`
+      return `${columnName} = ${this.Q_GEN.HANDLE_INSERT_JSON_B(value)}`
     } else if (Array.isArray(value)){
-      return `${columnName} = ${this.HANDLE_INSERT_ARRAY(value)} `
+      return `${columnName} = ${this.Q_GEN.HANDLE_INSERT_ARRAY(value)} `
     } 
-    return `${columnName} = ${this.HANDLE_INSERT_NUMBER_OR_STRING(value, `'`)} `
+    return `${columnName} = ${this.Q_GEN.HANDLE_INSERT_NUMBER_OR_STRING(value, `'`)} `
   }
 
   SETS = (itemsToSet: RowEntry, jsonColumnNames: string[] | undefined) => {
@@ -319,35 +268,6 @@ export default class SQL_BASE {
       setQuery += this.SET(entry[0], entry[1], isJsonB) + addend;
     })
     return setQuery
-  }
-
-  HANDLE_INSERT_NUMBER_OR_STRING = (value: Value, quote: string) => {
-    if (typeof value == "string"){
-      return `${quote}${value}${quote}`
-    } else if (typeof value == "number"){
-      return value
-    } else {
-      return value
-    }
-  }
-
-  HANDLE_INSERT_ARRAY = (array: Array<string|number>) => {
-    const newArray = array.map((item) => {
-      if (Array.isArray(item)){
-        return this.HANDLE_INSERT_ARRAY(item)
-      } else {
-        return this.HANDLE_INSERT_NUMBER_OR_STRING(item, `'`)
-      }
-    })
-
-    let sqlArray = "'{"
-    sqlArray += newArray.join(",")
-    sqlArray += "}'"
-    return sqlArray
-  }
-
-  HANDLE_INSERT_JSON_B = (object: {}) => {
-    return `'${JSON.stringify(object)}'::jsonb`
   }
 
   HANDLE_SUPPLEMENTARY = (initial_query: string, options: Options) => {
@@ -368,53 +288,13 @@ export default class SQL_BASE {
     return query
   }
 
-  HANDLE_INSERT_ARRAY_DATA = (array: any[], quote: string, jsonColumns: number[] | undefined = undefined) => {
-    let string = ""
-    array.forEach((value, index) => {
-      if (jsonColumns && Array.isArray(jsonColumns) && jsonColumns.includes(index)){
-        string += this.HANDLE_INSERT_JSON_B(value)
-      }
-      
-      else if (Array.isArray(value)){
-        string += this.HANDLE_INSERT_ARRAY(value)
-      } else {
-        string += this.HANDLE_INSERT_NUMBER_OR_STRING(value, quote)
-      }
-      if (index !== array.length - 1){
-        string += ', '
-      }
-    })
-    return string
-  }
-  
-  HANDLE_ARRAY_COLUMN_VALUES = (rowColumnValue: Value | Value[]) => {
-    if (Array.isArray(rowColumnValue)){
-      const values = rowColumnValue.map((value: any) => {
-        if ( value && typeof value === "string" && !Number.isNaN(Number(value))){
-          return Number(value)
-        } else if (typeof value === "string" || typeof value === "number" || typeof value === "boolean"){
-          return this.HANDLE_INSERT_NUMBER_OR_STRING(value, `'`)
-        } else {
-          if (value){
-            return value
-          } else {
-            throw Error(`Cannot Interpret Column Value Of Type ${typeof value}`)
-          }
-        }
-      })
-      return values
-    } else {
-      return rowColumnValue
-    }
-  } 
-
   HANDLE_ROWS = (rows: Rows): any => {
     const ROWS_FINAL = rows.map((row: Row) => {
       let newRow = row
       if (this.containsArray){
         for (const column in row){
           const rowColumnValue = row[column]
-          const UpdatedRowValue = this.HANDLE_ARRAY_COLUMN_VALUES(rowColumnValue)
+          const UpdatedRowValue = this.Q_GEN.HANDLE_ARRAY_COLUMN_VALUES(rowColumnValue)
           newRow[column] = UpdatedRowValue
         }
       }  
@@ -471,14 +351,6 @@ export default class SQL_BASE {
 
         if (!this.isPopulated) {
           res.message = "No rows returned"
-          // return {
-          //   ok: okay,
-          //   err: error,
-          //   rows: [],
-          //   isPopulated: this.isPopulated,
-          //   // res.message = "No rows returned",
-          //   message: message || "No rows returned.",
-          // };
         }
     
         const updatedRows = this.HANDLE_ROWS(rows);
@@ -492,38 +364,6 @@ export default class SQL_BASE {
         });
     
         this.rawRows = [...updatedRows];
-        
-        // return {
-        //   rows: this.rawRows,
-        //   ok: okay,
-        //   err: error,
-        //   message: message,
-        //   isPopulated: this.isPopulated,
-        // };
-      // }
-    
-      // If deleting, but the server returns OK without rows
-    
-      // Known error format
-      // if (response?.message) {
-      //   return {
-      //     ok: okay,
-      //     err: error,
-      //     rows: this.rawRows,
-      //     isPopulated: this.isPopulated,
-      //     message: message,
-      //   };
-      // }
-    
-      // Fallback: malformed response
-      // return {
-      //   ok: okay,
-      //   err: "Something Went Wrong",
-      //   message: "Something Went Wrong",
-      //   rows: this.rawRows,
-      //   isPopulated: this.isPopulated,
-      //   // hasTable: this.isPopulated ? true : false
-      // };
       return res
     } else {
       return {
@@ -537,149 +377,5 @@ export default class SQL_BASE {
     
   };
 
-  }
+}
 
-
-// export default SQL_BASE;
-//   protected HANDLE_RESPONSE = ( 
-//     response: any,
-//     deleted: boolean = false
-//   ): TableResponse => {
-//     if (response?.response && !response?.message) {
-//       if (!deleted) {
-//         const rows: Rows = response.response?.rows;
-//         if (!rows){
-//           return {
-//             rows: this.rawRows,
-//             ok: false,
-//             err: "There Were No Rows",
-//             message: response.message,
-//             isPopulated: true,
-//           }
-//         }
-        
-//         this.isPopulated = Array.isArray(rows) && rows.length > 0;
-//         if (!this.isPopulated) {return {ok: true, err: false, rows: [], isPopulated: false, message: response.message || "No rows returned."};}
-        
-//         const updatedRows = this.HANDLE_ROWS(rows);
-//         this.tableSchema.forEach(({ column, params }) => {
-//           if (params.includes(numeric)) {
-//             updatedRows.forEach((row: Row) => {
-//               row[column] = Number(row[column]);
-//             });
-//           }
-//         });
-
-//         this.rawRows = [...updatedRows];
-
-//         return {
-//           rows: this.rawRows,
-//           ok: true,
-//           err: false,
-//           message: response.message,
-//           isPopulated: true,
-//         };
-
-//       }
-
-//     // If deleting, but the server returns OK without rows
-//     if (deleted && response?.ok) {
-//       return {
-//         ok: true,
-//         err: false,
-//         rows: [],
-//         message: response.message || "Deleted successfully.",
-//         isPopulated: this.isPopulated,
-//       };
-//     }
-
-//     // Known error format
-//     if (response?.message) {
-//       return {
-//         ok: false,
-//         err: response.message,
-//         rows: this.rawRows,
-//         isPopulated: this.isPopulated,
-//         message: response.message,
-//       };
-//     }
-
-//   // Fallback: malformed response
-//   return {
-//     ok: false,
-//     err: "Something Went Wrong",
-//     message: "Something Went Wrong",
-//     rows: this.rawRows,
-//     isPopulated: this.isPopulated,
-//   };
-
-
-//     }
-
-//   }
-
-//   // if ((Array.isArray(rows) && rows.length == 0) || !rows || rows == null){
-//         //   this.isPopulated = false
-//         // }
-//   //       if (Array.isArray(rows) && rows.length > 0) {
-//   //         const updatedRows = this.HANDLE_ROWS(rows)
-//   //         this.tableSchema.forEach((schema, index) => {
-//   //           const {column, params} = schema
-//   //           updatedRows.forEach((row: Row, rowIndex: number) => {
-//   //             if (params.includes(numeric)){
-//   //                 updatedRows[rowIndex][column] = Number(updatedRows[rowIndex][column])
-//   //             } 
-//   //           })
-//   //         })
-
-          
-//   //         this.rawRows = [...updatedRows]
-          
-//   //         return { 
-//   //           rows: this.rawRows,
-//   //           ok: response.ok,
-//   //           err: false,
-//   //           message: response.message,
-//   //           isPopulated: this.isPopulated,
-//   //         };
-//   //       } 
-        
-        
-        
-        
-//   //       else {
-//   //         return {
-//   //           ok: false,
-//   //           err: response.message,
-//   //           rows: this.rawRows,
-//   //           isPopulated: this.isPopulated,
-//   //           message: response.message
-//   //         }
-//   //       }
-
-//   //     } else {
-//   //       return {
-//   //         ok: false,
-//   //         err: response.message,
-//   //         rows: this.rawRows,
-//   //         isPopulated: this.isPopulated,
-//   //         message: response.message,
-//   //       };
-//   //     }
-//   //   } else if (response?.message) {
-//   //     return {
-//   //       ok: false,
-//   //       err: response.message,
-//   //       message: response.message,
-//   //       rows: this.rawRows,
-//   //       isPopulated: this.isPopulated,
-//   //     };
-//   //   } else {
-//   //     return {
-//   //       ...response,
-//   //       message: "Something Went Wrong",
-//   //       rows: this.rawRows,
-//   //     };
-//   //   }
-//   // };
-// }
