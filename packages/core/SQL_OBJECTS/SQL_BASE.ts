@@ -437,9 +437,12 @@ export default class SQL_BASE {
     return query
   }
 
+  
+
   protected HANDLE_RESPONSE = (
     response: any,
-    deleted: boolean = false
+    deleted: boolean = false,
+
   ): TableResponse => {
     const okay = response.ok
     // console.log("HANDLE_RESPONSE response: ", response)
@@ -447,6 +450,8 @@ export default class SQL_BASE {
       const rows: Rows = response.response.rows;
       const error = response.response?.err ? response.response.err : false
       const message = response.response?.message ? response.response.message : false
+
+     
       
       if (deleted) {
         this.isPopulated = false;

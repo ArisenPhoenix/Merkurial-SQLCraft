@@ -229,7 +229,7 @@ class SQL_TABLE extends TABLE {
         if (typeof matchIndex === "number" && matchIndex > -1) {
           temp.splice(matchIndex, 1)
           this.rawRows = [...temp]
-          return this.rawRows
+          return this.outputRows
         } else {
           // console.log("Match of Row Failed")
           return false
@@ -262,7 +262,7 @@ class SQL_TABLE extends TABLE {
             this.rawRows = [...temp]
             this.updating = false
             this.returning = false
-            return this.rawRows
+            return this.outputRows
           }
         }
 
@@ -290,7 +290,7 @@ class SQL_TABLE extends TABLE {
           this.rawRows = [...temp]
           this.rawRows.splice(matchIndex, 1, finalRowData)
           this.rawRows = [...this.rawRows]
-          return this.rawRows
+          return this.outputRows
         } else {
             console.log("Update By Any Was Unsuccessful")
             this.updating = false
