@@ -1,0 +1,36 @@
+{
+    "compilerOptions": {
+      "target": "ES2020",
+      // "module": "ESNext",
+      "module": "CommonJS",
+
+      // "module": "CommonJS",
+      // "lib": ["ES2020", "DOM"],
+
+      "allowSyntheticDefaultImports": true,
+      "allowJs": true,
+      "moduleResolution": "Node",
+      "moduleDetection": "force",
+      "resolveJsonModule": true,
+      "esModuleInterop": true,
+      "forceConsistentCasingInFileNames": false,
+      "skipLibCheck": true,
+      "strict": false,
+      "baseUrl": ".",
+      "strictPropertyInitialization": false,
+
+      // "allowImportingTsExtensions": true,
+      "paths": {
+        "@core/*": ["packages/core/*"],
+        "@sql/*": ["packages/core/SQL_OBJECTS/*"],
+        "@helpers/*": ["packages/helpers/*"],
+        "@typedefs/*": ["packages/type_defs/*"],
+        "@utils/*": ["packages/utils/*"],
+        "@apis/*": ["packages/APIS/*"]
+      },
+      "outDir": "dist"
+    },
+    "include": ["main.ts", "packages/**/*", "packages/utils", "packages/type_defs", "packages/helpers", "packages/APIS", "Tests/Table", "Tests/ZDUMMY_DATA"],
+    "exclude": ["node_modules", "dist", "**/*.test.ts"]
+  }
+  
