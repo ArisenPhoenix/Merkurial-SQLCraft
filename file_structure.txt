@@ -5,15 +5,14 @@ SQL-CRAFT/
 
         APIS/
             FETCH.ts
+            pgPool.ts
+
         core/
-            
             QUERIES/
-                Table/
-                    create.js
-                    delete.js
-                query.js
+                query.ts
 
             SQL_OBJECTS/
+                SQL_GENERATOR.ts
                 SQL_BASE.ts
                 SQL_COLUMN.ts
                 SQL_DATABASE.ts
@@ -27,6 +26,7 @@ SQL-CRAFT/
                 checkAutoGenId.js
                 convertObjectToQuery.js
                 postgreArgs.js
+                text.ts
 
         types/
             api.ts

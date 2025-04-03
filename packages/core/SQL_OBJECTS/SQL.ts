@@ -50,20 +50,10 @@ class SQL_TABLE extends TABLE {
         throw Error("All The Required Data Was Not There")
       }
     }
-
-    // submitRow = async(row: RowEntry, options: Options) => {
-    //   this.rawRows.push(row); // show in UI instantly
-    //   await this.addRow(row, options).then(res => {
-    //     if (Array.isArray(res) && res.length > -1) {
-    //       // cleanup rawRow & push to sqlRows inside addRow
-    //     }
-    //   });
-    // }
     getRowMatch = (row: RowEntry) => {
       const ID = this.primaryKey
       console.log("getRowMatch This.primaryKey: ", this.primaryKey)
       if (!Array.isArray(row) && typeof row == "object") {
-        // const modifiedRow = row
         let matchIndex = this.rawRows.findIndex((checkRow, index) => {
           return checkRow[ID] == row[ID]
         })

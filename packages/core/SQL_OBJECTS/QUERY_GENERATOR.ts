@@ -19,6 +19,7 @@ import {
 } from "../../type_defs/SQL_TYPES";
 
 import ARGS from "../../helpers/postgreArgs";
+
 class QUERY_GENERATOR {
     HANDLE_INSERT_NUMBER_OR_STRING = (value: Value, quote: string) => {
         if (typeof value == "string"){
@@ -49,23 +50,6 @@ class QUERY_GENERATOR {
         return `'${JSON.stringify(object)}'::jsonb`
       }
     
-    // HANDLE_SUPPLEMENTARY = (initial_query: string, options: Options) => {
-    //     let query = initial_query
-    //     if (options.groupBy && typeof options.groupBy === "string") {
-    //       query += ` GROUP BY "${options.groupBy}"`
-    //     }
-    //     if (options.orderBy && typeof options.orderBy === "string"){
-    //       query += ` ORDER BY "${options.orderBy}"`
-    //     }
-    //     if (options.limit && typeof options.limit === "number"){
-    //       query += ` LIMIT ${options.limit}`
-    //     } if (options.returning && typeof options.returning === "string"){
-    //       this.returning = true
-    //       query += ` RETURNING ${options.returning}`
-    //     }
-    //     this.returning = false;
-    //     return query
-    //   }
     
     HANDLE_INSERT_ARRAY_DATA = (array: any[], quote: string, jsonColumns: number[] | undefined = undefined) => {
         let string = ""
@@ -107,24 +91,13 @@ class QUERY_GENERATOR {
         }
       } 
     
-    // HANDLE_ROWS = (rows: Rows): any => {
-    //     const ROWS_FINAL = rows.map((row: Row) => {
-    //       let newRow = row
-    //       if (this.containsArray){
-    //         for (const column in row){
-    //           const rowColumnValue = row[column]
-    //           const UpdatedRowValue = this.HANDLE_ARRAY_COLUMN_VALUES(rowColumnValue)
-    //           newRow[column] = UpdatedRowValue
-    //         }
-    //       }  
-          
-    //       return newRow
-    //   })
-    
-      
-    //   return ROWS_FINAL
-      
-    // }
+    SELECT_ALL = () => {
+      return "SELECT * ";
+    };
+
+    FROM_TABLE = (tableName: string) => {
+      return `FROM ${tableName} `;
+    };
     
     TableWhere = (columnName: ColumnName, tableName: string, value: Value) => {
         let val = value;
@@ -132,18 +105,18 @@ class QUERY_GENERATOR {
           val = `'${value}'`;
         }
         return `"${columnName}" = '${tableName}'.${val}`;
-      };
+    };
     
     
-      Where = (columnName: ColumnName, value: Value) => {
-        let val = value;
-        if (typeof val === "string" || typeof val === "number" || typeof val === "boolean") {
-          val = this.HANDLE_INSERT_NUMBER_OR_STRING(val, `'`)
-        } else if (Array.isArray(val)){
-          val = this.HANDLE_ARRAY_COLUMN_VALUES(val)
-        } 
-        return `"${columnName}" = ${val} `;
-      };
+    Where = (columnName: ColumnName, value: Value) => {
+      let val = value;
+      if (typeof val === "string" || typeof val === "number" || typeof val === "boolean") {
+        val = this.HANDLE_INSERT_NUMBER_OR_STRING(val, `'`)
+      } else if (Array.isArray(val)){
+        val = this.HANDLE_ARRAY_COLUMN_VALUES(val)
+      } 
+      return `"${columnName}" = ${val} `;
+    };
     
     Wheres = (args: ColumnInput) => {
         let query = "WHERE ";
@@ -187,19 +160,21 @@ export class SQL_HELPERS {
     return text;
   };
 
-  // findRowByColumnsAndValues = async (arr: ColumnInput[], callAddress=this.callAddress, options: Options | undefined) => {
+getPrimaryKey = (tableSchema: Schema) => {
+  let primaryKey = "";
+        
+  for (let {column, params} of tableSchema){
+      if (ARGS.primaryKey in params){
+          primaryKey = column;
+          break;
+      }
+  }
 
-  //   let query = this.compareAllColumnInputs(arr);
-  //   query = this.HANDLE_SUPPLEMENTARY(query, options)
-  //   const response = await this.call(
-  //     { query: query, type: "GET" },
-  //     "POST",
-  //     callAddress,
-  //     "findRowByColumnsAndValues"
-  //   );
-  //   return response;
-  // };
-
+  if (primaryKey == ""){
+      throw Error("Primary Key Could Not Be Found In Schema: " + JSON.stringify(tableSchema));
+  }
+  return primaryKey;
+}
   
 }
 

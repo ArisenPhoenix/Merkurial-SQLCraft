@@ -11,6 +11,7 @@
 import { CONVERT_CONSTRUCTOR_TO_CREATE_TABLE_IF_NOT_EXISTS } from "../../helpers/convertObjectToQuery";
 import SQL_BASE from "./SQL_BASE";
 import SQL_ROW from "./SQL_ROW";
+// import QUERY_GENERATOR from "./QUERY_GENERATOR";
 
 import {
   Key,
@@ -26,7 +27,7 @@ import {
   Rows
 } from "../../type_defs/SQL_TYPES";
 
-import ARGS from "../../helpers/postgreArgs";
+// import ARGS from "../../helpers/postgreArgs";
 
 export default class TABLE extends SQL_BASE {
   hasTable: boolean = false
@@ -58,13 +59,13 @@ export default class TABLE extends SQL_BASE {
   }
 
   CREATE_TABLE = async (foreignKeyMap: ForeignKeyMap = null) => {
-    const query = CONVERT_CONSTRUCTOR_TO_CREATE_TABLE_IF_NOT_EXISTS(
+    const query = CONVERT_CONSTRUCTOR_TO_CREATE_TABLE_IF_NOT_EXISTS (
       this.tableName,
       this.tableSchema,
       foreignKeyMap
     );
 
-    console.log("CREATE_TABLE QUERY: ", query)
+    // console.log("CREATE_TABLE QUERY: ", query)
 
     const response = await this.call(
       { query: query },
@@ -75,6 +76,8 @@ export default class TABLE extends SQL_BASE {
 
     return { ...response, hasTable: this.hasTable };
   };
+
+  FROM_TABLE = this.Q_GEN.FROM_TABLE(this.tableName);
 
   HAS_TABLE = async () => {
     if (!this.hasTable) {
@@ -99,7 +102,8 @@ export default class TABLE extends SQL_BASE {
   };
 
   GET_TABLE = async () => {
-    const query = `SELECT * FROM ${this.tableName}`;
+    // const query = `SELECT * FROM ${this.tableName}`;
+    const query = this.Q_GEN.SELECT_ALL() + this.FROM_TABLE
     const response = await this.call(
       { query: query, type: "GET" },
       "POST",
@@ -170,13 +174,9 @@ export default class TABLE extends SQL_BASE {
     return true;
   };
 
-  SELECT_ALL = () => {
-    return "SELECT * ";
-  };
-
-  FROM_TABLE = () => {
-    return `FROM ${this.tableName} `;
-  };
+  
+  
+  
 
   SELECT_ALL_BY_FOREIGN_KEY_MATCH = async (
     foreignKeyValuePair: ForeignKeyValuePair, options: Options | undefined
@@ -184,7 +184,7 @@ export default class TABLE extends SQL_BASE {
     const selectedFk = Object.keys(foreignKeyValuePair)[0];
     const value = foreignKeyValuePair[selectedFk];
 
-    let query = this.SELECT_ALL() + this.FROM_TABLE();
+    let query = this.Q_GEN.SELECT_ALL() + this.FROM_TABLE;
     query += "WHERE " + this.Q_GEN.Where(selectedFk, value);
     
     query = options ? this.HANDLE_SUPPLEMENTARY(query, options) : query
@@ -201,8 +201,9 @@ export default class TABLE extends SQL_BASE {
     
   };
 
-  selectedColumns = (args: ColumnInput) => {
-    let query = "";
+
+  SELECT_COLUMNS = (args: ColumnInput) => {
+    let query = "SELECT ";
     const entries = Object.entries(args);
     entries.forEach((entry, index) => {
       const [column, value] = entry;
@@ -215,12 +216,28 @@ export default class TABLE extends SQL_BASE {
       query += `"${column}${addend}"`;
     });
     return query;
-  };
+  }
 
-  SelectAllByValues = async (object: ColumnInput, options: Options | undefined) => {
+  // selectedColumns = (args: ColumnInput) => {
+  //   let query = "";
+  //   const entries = Object.entries(args);
+  //   entries.forEach((entry, index) => {
+  //     const [column, value] = entry;
+  //     if (!this.tableSchema[column]) {
+  //       throw new Error(
+  //         `Column ${column} does not exist on table ${this.tableName}. `
+  //       );
+  //     }
+  //     const addend = index === entries.length - 1 ? "" : ", ";
+  //     query += `"${column}${addend}"`;
+  //   });
+  //   return query;
+  // };
 
+  SelectAllByValues = async (object: ColumnInput, options: Options | undefined = {}) => {
     const WHERES = this.Q_GEN.Wheres(object);
-    let query = `SELECT * FROM ${this.tableName} ${WHERES}`;
+    let query = this.Q_GEN.SELECT_ALL() + this.FROM_TABLE + WHERES
+    // let query = `SELECT * FROM ${this.tableName} ${WHERES}`;
     query = options ? this.HANDLE_SUPPLEMENTARY(query, options) : query
     console.log("Final Query: ", query)
 
@@ -230,15 +247,15 @@ export default class TABLE extends SQL_BASE {
       this.callAddress,
       "SQL.SelectAllByValues"
     );
-    const data = this.HANDLE_RESPONSE(response);
-    return data;
+    return response;
   };
 
   SelectBySelectColumnsAndValues = async (object: ColumnInput, options: Options | undefined) => {
+    let query = this.SELECT_COLUMNS(object) + this.FROM_TABLE;
     const WHERES = this.Q_GEN.Wheres(object);
-    const Selected = this.selectedColumns(object);
-    let query = `SELECT ${Selected} FROM ${this.tableName} ${WHERES}`;
-    query = options ?  this.HANDLE_SUPPLEMENTARY(query, options) : query
+
+    query += `${WHERES}`;
+    query = options ? this.HANDLE_SUPPLEMENTARY(query, options) : query
 
     const response = await this.call(
       { query: query },
@@ -246,8 +263,8 @@ export default class TABLE extends SQL_BASE {
       this.callAddress,
       "SQL.SelectBySelectColumnsAndValues"
     );
-    const data = this.HANDLE_RESPONSE(response);
-    return data;
+
+    return response;
   };
 
   UPDATE_TABLE = async(query: string | undefined = this.lastQuery) => {
@@ -268,7 +285,7 @@ export default class TABLE extends SQL_BASE {
         )
       })
       return this.sqlRows
-    }
+  }
 
   getClashingIds = (): (string | number)[] => {
     const ids = new Set(this.sqlRows.map(row => row.rowData[this.primaryKey]));
@@ -300,9 +317,6 @@ export default class TABLE extends SQL_BASE {
     if (res.ok && Array.isArray(res.rows)) {
       this.rawRows = res.rows;
     }
-    // let result = this.HANDLE_RESPONSE(res)
-    // result.rows = this.fixSqlRows()
-    // return this.HANDLE_RESPONSE(res);
     return res
 
   }
@@ -328,7 +342,7 @@ export default class TABLE extends SQL_BASE {
 
 
   SYNC_TABLE = async() => {
-    let query = this.SELECT_ALL() + " " + this.FROM_TABLE();
+    let query = this.Q_GEN.SELECT_ALL() + this.Q_GEN.FROM_TABLE(this.tableName);
     const res = await this.call({query: query, type: "GET"}, "GET", this.callAddress, "SQL.SYNC_TABLE");
     if (res?.rows){
       this.GENERATE_SQL_ROWS(res.rows)

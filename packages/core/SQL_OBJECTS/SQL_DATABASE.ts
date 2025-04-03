@@ -9,6 +9,8 @@
 // Will Be Used For Joins And Such When I Get Around To It
 
 import SQL_TABLE from "./SQL_TABLE"   //@sql/SQL_TABLE;
+import Args from "../../helpers/postgreArgs"
+import QUERY_GENERATOR, {SQL_HELPERS} from "./QUERY_GENERATOR"
 
 import { ForeignKeyMap, Messenger, None, Options, Schema } from "../../type_defs/SQL_TYPES" //"@typedefs/SQL_TYPES";
 
@@ -28,10 +30,11 @@ interface TablesObject {
 class SQL_DB  {
     // Required Parameters
     tableSchemas: DatabaseSchema
+    // helpers: SQL_HELPERS
+    // Q_GEN: QUERY_GENERATOR
 
     // Derived Parameters
     tablesObject: TablesObject
-
     db_call_address: string
     messenger: Messenger | false
     tableNames: string[]
@@ -41,24 +44,29 @@ class SQL_DB  {
         db_call_address: string,
         messenger: Messenger | false = false
     ){
-        this.tableSchemas = tableSchemas
-        this.db_call_address = db_call_address
-        this.messenger = messenger
-        this.tableNames = []
-        this.failedTables = []
+        
 
-        this.construct()
+        this.tableSchemas = tableSchemas;
+        this.db_call_address = db_call_address;
+        this.messenger = messenger;
+        this.tableNames = [];
+        this.failedTables = [];
+        this.construct();
     }
 
 
-
+    Q_GEN = new QUERY_GENERATOR();
+    helpers = new SQL_HELPERS();
+    
     construct = async () => {
         for (let tableName of Object.keys(this.tableSchemas)){
             
             const tableData = this.tableSchemas[tableName]
             const tableSchema = tableData.schema
+            const primaryKey = this.helpers.getPrimaryKey(tableSchema)
+
             const foreignKeyMap = tableData.foreignKeyMap
-            const currentTable = new SQL_TABLE(tableName, this.db_call_address, tableSchema, this.messenger, foreignKeyMap)
+            const currentTable = new SQL_TABLE(tableName, this.db_call_address, tableSchema, this.messenger, primaryKey, foreignKeyMap)
             const res = await currentTable.CREATE_TABLE()
             if (res.ok){
                 this.tableNames.push(tableName)
@@ -78,7 +86,20 @@ class SQL_DB  {
         if (this.tablesObject[tableName]) {
             throw Error(`Table ${tableName} Already Exists: Please First DROP ${tableName} Or Use Another Name`)
         }
-        const newTable = new SQL_TABLE(tableName, this.db_call_address, tableSchema, this.messenger, foreignKeyMap)
+        let primaryKey = "";
+
+        for (let {column, params} of tableSchema){
+            if (Args.primaryKey in params){
+                primaryKey = column;
+                break;
+            }
+        }
+
+        if (primaryKey == ""){
+            throw Error("Primary Key Could Not Be Found In SQL_DATABASE.create");
+        }
+
+        const newTable = new SQL_TABLE(tableName, this.db_call_address, tableSchema, this.messenger, primaryKey, foreignKeyMap)
         const res = await newTable.CREATE_TABLE()
         if (res.ok){
             this.tablesObject[tableName] = newTable
@@ -190,7 +211,10 @@ class SQL_DB  {
             query += this.get_on_string(columnToMatch, mainTable[0], tableNames[0])
         }
 
-        query = options ? new SQL_TABLE("filler", "filler", [{column: "filler", params: ["filler"]}], false, false).HANDLE_SUPPLEMENTARY(query, options) : query
+        const tableSchema = [{column: "filler", params: ["filler"]}]
+        const primaryKey = this.helpers.getPrimaryKey(tableSchema);
+
+        query = options ? new SQL_TABLE("filler", "filler", tableSchema, this.messenger, primaryKey).HANDLE_SUPPLEMENTARY(query, options) : query
     
         return query
     }
@@ -201,9 +225,7 @@ class SQL_DB  {
         columnsToMatch: string[], 
         joinTypes: string[] | false = false, 
         columns: string[] | None = false, 
-        
         options: Options | None = false) => {
-        // const mainTable = tableNames.splice(0, 1)
         let query = "SELECT "
         query += this.addColumnsToQuery(columns)
         
@@ -227,8 +249,11 @@ class SQL_DB  {
             query += this.get_join_type(joinTypes[0])
             query += this.get_on_string(tableNames[0], columnsToMatch[0], tableNames[0])
         }
+
+        const tableSchema = [{column: "filler", params: ["filler"]}]
+        const primaryKey = this.helpers.getPrimaryKey(tableSchema)
         
-        query = options ? new SQL_TABLE("filler", "filler", [{column: "filler", params: ["filler"]}], false, false).HANDLE_SUPPLEMENTARY(query, options) : query
+        query = options ? new SQL_TABLE("filler", "filler", tableSchema, this.messenger, primaryKey).HANDLE_SUPPLEMENTARY(query, options) : query
     
         return query
         }
