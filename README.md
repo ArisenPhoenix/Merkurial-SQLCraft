@@ -26,6 +26,12 @@ Most notably:
 ---
 
 ## 📁 File Structure
+To regenerate the file structure tree (excluding common noise like `node_modules`):
+
+```bash
+tree -L 2 -I 'node_modules|.git|dist|build|next|Tests|package-lock.json' > file_structure.txt
+```
+See [`file_structure.txt`](file_structure.txt) for a detailed layout of the project.
 
 
 ## 📦 Tech Stack

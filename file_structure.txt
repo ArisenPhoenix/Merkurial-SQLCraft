@@ -1,46 +1,19 @@
-SQL-CRAFT/
-    node_modules/
+.
+├── CONTRIBUTIONS.md
+├── file_structure.txt
+├── LICENSE
+├── main.ts
+├── NOTICE
+├── package.json
+├── packages
+│   ├── APIS
+│   ├── core
+│   ├── helpers
+│   ├── react
+│   ├── type_defs
+│   └── utils
+├── README.md
+├── TODO.md
+└── tsconfig.json
 
-    packages/
-
-        APIS/
-            FETCH.ts
-            pgPool.ts
-
-        core/
-            QUERIES/
-                query.ts
-
-            SQL_OBJECTS/
-                SQL_GENERATOR.ts
-                SQL_BASE.ts
-                SQL_COLUMN.ts
-                SQL_DATABASE.ts
-                SQL_ROW.ts
-                SQL_TABLE.ts
-                SQL.ts
-
-            QUERY.ts
-
-            helpers/
-                checkAutoGenId.js
-                convertObjectToQuery.js
-                postgreArgs.js
-                text.ts
-
-        types/
-            api.ts
-            SQL_TYPES.ts
-
-        utils/
-            prettyPrint.js
-
-        next/
-        react/
-        
-        LICENSE - Mozilla Public License Version 2.0
-        NOTICE
-        package-lock.json
-        package.json
-        README.md
-        tsconfig.json
+8 directories, 9 files
